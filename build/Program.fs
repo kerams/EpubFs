@@ -1,5 +1,4 @@
-﻿open System
-open System.Collections.Generic
+﻿open System.Collections.Generic
 open Fake.Core
 open Fake.IO
 
@@ -16,7 +15,6 @@ let run workingDir fileName args =
 
     CreateProcess.fromRawCommandLine fileName args
     |> CreateProcess.withWorkingDirectory workingDir
-    |> CreateProcess.withTimeout TimeSpan.MaxValue
     |> CreateProcess.ensureExitCodeWithMessage $"'%s{workingDir}> %s{fileName} %s{args}' task failed"
     |> Proc.run
     |> ignore
@@ -47,8 +45,8 @@ createTarget "Publish" <| fun _ ->
         | None -> failwith "The Nuget API key must be set in a NUGET_KEY environmental variable"
 
     let nupkg = System.IO.Directory.GetFiles (project </> "bin" </> "Release") |> Seq.head
-    let pushCmd = $"nuget push %s{nupkg} -s nuget.org -k %s{nugetKey}"
-    run project dotnet pushCmd
+    let pushCmd = $"nuget push {nupkg} -s nuget.org -k {nugetKey}"
+    run "." dotnet pushCmd
 
 createTarget "Build" <| fun _ ->
     run cwd "dotnet" $"build {sln}"
@@ -66,7 +64,12 @@ let runTarget targetName =
 [<EntryPoint>]
 let main (args: string[]) =
     match args with
-    | [||] -> runTarget "Build"
-    | [| targetName |] -> runTarget targetName
-    | otherwise -> printfn $"Unknown args %A{otherwise}"
-    0
+    | [||] ->
+        runTarget "Build"
+        0
+    | [| targetName |] ->
+        runTarget targetName
+        0
+    | otherwise ->
+        printfn $"Unknown args %A{otherwise}"
+        1

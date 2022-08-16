@@ -6,6 +6,12 @@
   </PropertyGroup>
 
   <ItemGroup>
+    <None Include="samples\Cover, auto nav, css.epub">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </None>
+    <None Include="samples\cover.jpg">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </None>
     <None Include="samples\No cover, auto nav, no css.epub">
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
     </None>
@@ -23,7 +29,5 @@
   <ItemGroup>
     <PackageReference Update="FSharp.Core" Version="6.0.5" />
   </ItemGroup>
-
-  <ItemGroup />
 
 </Project>
