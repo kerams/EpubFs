@@ -1,0 +1,5 @@
+<Solution>
+  <Project Path="build/Build.fsproj" />
+  <Project Path="EpubFs.Tests/EpubFs.Tests.fsproj" />
+  <Project Path="EpubFs/EpubFs.fsproj" />
+</Solution>

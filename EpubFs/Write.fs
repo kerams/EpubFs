@@ -1,19 +1,39 @@
-﻿module EpubFs.Write
+﻿namespace EpubFs
 
 open Giraffe.ViewEngine
 open System
+open System.Globalization
 open System.IO
 open System.IO.Compression
 
-module private Package =
-    let item href id typ =
-        voidTag "item" [ _href href; _id id; attr "media-type" typ ]
+[<AutoOpen>]
+module internal Internal =
+    let smilTimeStamp (x: Choice<string, TimeSpan>) =
+        match x with
+        | Choice1Of2 s -> s
+        | Choice2Of2 ts ->
+            ts.ToString ((if ts.Milliseconds = 0 then @"hh\:mm\:ss" else @"hh\:mm\:ss\.fff"), CultureInfo.InvariantCulture)
+
+    let xmlDecl = rawText """<?xml version="1.0" encoding="UTF-8"?>"""
+    let xhtmlDoctype = rawText "<!DOCTYPE html>"
+
+    let _refines value = attr "refines" value
+
+    let item href id typ hasSmil =
+        voidTag "item" [
+            _href href
+            _id id
+            attr "media-type" typ
+
+            if hasSmil then
+                attr "media-overlay" $"{id}_smil"
+        ]
 
     let itemNav href typ =
         voidTag "item" [ _href href; _id "nav"; attr "properties" "nav"; attr "media-type" typ ]
 
-    let itemCoverImage typ =
-        voidTag "item" [ _href "cover"; _id "cover-img"; attr "properties" "cover-image"; attr "media-type" typ ]
+    let itemCoverImage ext typ =
+        voidTag "item" [ _href ("cover" + ext); _id "cover-img"; attr "properties" "cover-image"; attr "media-type" typ ]
 
     let itemRef idref linear =
         voidTag "itemref" [ attr "idref" idref; attr "linear" (if linear then "yes" else "no") ]
@@ -22,90 +42,151 @@ module private Package =
         let modifiedAt = Option.defaultWith (fun () -> DateTimeOffset.UtcNow) metadata.ModifiedAt
         let contentFiles = List.indexed manifest.ContentFiles 
 
-        tag "package" [ attr "xmlns" "http://www.idpf.org/2007/opf"; attr "xmlns:dc" "http://purl.org/dc/elements/1.1/"; attr "version" "3.0"; attr "unique-identifier" "id" ] [
-            tag "metadata" [] [
-                tag "dc:identifier" [ _id "id" ] [ str metadata.Id ]
-                tag "dc:title" [] [ str metadata.Title ]
+        [
+            xmlDecl
+            tag "package" [
+                attr "xmlns" "http://www.idpf.org/2007/opf"
+                attr "xmlns:dc" "http://purl.org/dc/elements/1.1/"
+                attr "prefix" "media: http://www.idpf.org/epub/vocab/overlays/#"
+                attr "version" "3.0"
+                attr "unique-identifier" "id"
+            ] [
+                tag "metadata" [] [
+                    tag "dc:identifier" [ _id "id" ] [ str metadata.Id ]
+                    tag "dc:title" [] [ str metadata.Title ]
 
-                for i, c in List.indexed metadata.Creators do
-                    tag "dc:creator" [ _id $"creator{i + 1}" ] [ str c ]
+                    for i, c in List.indexed metadata.Creators do
+                        tag "dc:creator" [ _id $"creator{i + 1}" ] [ str c ]
 
-                for l in metadata.Languages do
-                    tag "dc:language" [] [ rawText l ]
+                    for l in metadata.Languages do
+                        tag "dc:language" [] [ rawText l ]
 
-                tag "meta" [ _property "dcterms:modified" ] [ rawText (modifiedAt.ToUniversalTime().ToString "yyyy'-'MM'-'dd'T'HH':'mm':'ss'Z'") ]
+                    tag "meta" [ _property "dcterms:modified" ] [ rawText (modifiedAt.ToUniversalTime().ToString ("yyyy-MM-ddTHH:mm:ssZ", CultureInfo.InvariantCulture)) ]
 
-                match metadata.Source with
-                | Some source -> tag "dc:source" [] [ str source ]
-                | _ -> ()
-            ]
-            tag "manifest" [] [
-                item manifest.TitlePage.FileName "title" "application/xhtml+xml"
-                itemNav "_nav.xhtml" "application/xhtml+xml"
+                    match metadata.Source with
+                    | Some source -> tag "dc:source" [] [ str source ]
+                    | _ -> ()
 
-                match manifest.CoverImage with
-                | Some x -> itemCoverImage x.MediaType
-                | _ -> ()
+                    match metadata.Description with
+                    | Some desc -> tag "dc:description" [] [ str desc ]
+                    | _ -> ()
 
-                for index, x in contentFiles do
-                    item x.FileName $"item{index + 1}" "application/xhtml+xml"
+                    match metadata.Publisher with
+                    | Some pub -> tag "dc:publisher" [] [ str pub ]
+                    | _ -> ()
 
-                for index, css in List.indexed manifest.CssFiles do
-                    item css.FileName $"css{index + 1}" "text/css"
-            ]
-            tag "spine" [] [
-                itemRef "title" false
-                itemRef "nav" false
+                    for subj in metadata.Subjects do
+                        tag "dc:subject" [] [ str subj ]
 
-                for index, x in contentFiles do
-                    itemRef $"item{index + 1}" (x.Navigation.IsSome && x.Navigation.Value = Linear)
+                    match metadata.Rights with
+                    | Some rights -> tag "dc:rights" [] [ str rights ]
+                    | _ -> ()
+
+                    match metadata.MediaOverlay with
+                    | Some mo ->
+                        tag "meta" [ _property "media:duration" ] [ rawText (smilTimeStamp mo.TotalDuration) ]
+
+                        match manifest.TitlePage.Smil with
+                        | Some s -> tag "meta" [ _property "media:duration"; _refines "#title_smil" ] [ rawText (smilTimeStamp s.Duration) ]
+                        | _ -> ()
+
+                        for index, x in contentFiles do
+                            match x.Smil with
+                            | Some s -> tag "meta" [ _property "media:duration"; _refines $"#item{index + 1}_smil" ] [ rawText (smilTimeStamp s.Duration) ]
+                            | _ -> ()
+
+                        match mo.ActiveClass with
+                        | Some cls -> tag "meta" [ _property "media:active-class" ] [ str cls ]
+                        | _ -> ()
+
+                        match mo.PlaybackActiveClass with
+                        | Some cls -> tag "meta" [ _property "media:playback-active-class" ] [ str cls ]
+                        | _ -> ()
+
+                        for narrator in mo.Narrators do
+                            tag "meta" [ _property "media:narrator" ] [ str narrator ]
+                    | _ -> ()
+                ]
+                tag "manifest" [] [
+                    item manifest.TitlePage.FileName "title" "application/xhtml+xml" manifest.TitlePage.Smil.IsSome
+                    itemNav "_nav.xhtml" "application/xhtml+xml"
+
+                    match manifest.CoverImage with
+                    | Some x -> itemCoverImage x.Extension x.MediaType
+                    | _ -> ()
+
+                    for index, x in contentFiles do
+                        item x.FileName $"item{index + 1}" "application/xhtml+xml" x.Smil.IsSome
+
+                    if manifest.TitlePage.Smil.IsSome then
+                        item $"{manifest.TitlePage.FileName}.smil" "title_smil" "application/smil+xml" false
+
+                    for index, x in contentFiles do
+                        if x.Smil.IsSome then
+                            item $"{x.FileName}.smil" $"item{index + 1}_smil" "application/smil+xml" false
+
+                    for index, x in List.indexed manifest.AudioFiles do
+                        item x.FileName $"audio{index + 1}" x.MediaType false
+
+                    for index, css in List.indexed manifest.CssFiles do
+                        item css.FileName $"css{index + 1}" "text/css" false
+                ]
+                tag "spine" [] [
+                    itemRef "title" true
+                    itemRef "nav" true
+
+                    for index, x in contentFiles do
+                        itemRef $"item{index + 1}" (x.Navigation.IsSome && x.Navigation.Value = Linear)
+                ]
             ]
         ]
-
-module private Container =
-    let container () =
-        tag "container" [ attr "version" "1.0"; attr "xmlns" "urn:oasis:names:tc:opendocument:xmlns:container" ] [
-            tag "rootfiles" [] [
-                voidTag "rootfile" [ attr "media-type" "application/oebps-package+xml"; attr "full-path" "EPUB/package.opf" ]
-            ]
-        ]
-
-[<AutoOpen>]
-module private WriteInt =
-    let xhtmlDoctype = rawText """<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.1//EN" "http://www.w3.org/TR/xhtml11/DTD/xhtml11.dtd">"""
-    let xhtmlXmlns = attr "xmlns" "http://www.w3.org/1999/xhtml"
 
     let writeEntryStream (archive: ZipArchive) level name (inStream: Stream) =
         let e = archive.CreateEntry (name, level)
         use stream = e.Open ()
         inStream.CopyTo stream
 
-    let writeEntryBytes (archive: ZipArchive) level name (bytes: byte[]) =
+    let writeEntryBytes archive level name (bytes: byte[]) =
         use ms = new MemoryStream (bytes)
         writeEntryStream archive level name ms
 
     let generateNav manifest =
-        html [ xhtmlXmlns; attr "xmlns:epub" "http://www.idpf.org/2007/ops" ] [
-            head [] [
-                title [] [ str "Table of Contents" ]
-            ]
-            body [] [
-                nav [ attr "role" "doc-toc"; attr "epub:type" "toc"; _id "toc" ] [
-                    h2 [] [ str "Table of Contents" ]
-                    ol [] [
-                        for x in manifest.ContentFiles do
-                            if x.Navigation.IsSome then
-                                li [] [ a [ _href x.FileName ] [ str x.Title ] ]
+        let firstContentFile =
+            manifest.ContentFiles
+            |> List.tryPick (fun x -> if x.Navigation.IsSome then Some x.FileName else None)
+            |> Option.defaultValue manifest.TitlePage.FileName
+
+        [
+            xhtmlDoctype
+            html [ attr "xmlns" "http://www.w3.org/1999/xhtml"; attr "xmlns:epub" "http://www.idpf.org/2007/ops" ] [
+                head [] [
+                    title [] [ str "Table of Contents" ]
+                ]
+                body [] [
+                    nav [ attr "role" "doc-toc"; attr "epub:type" "toc"; _id "toc" ] [
+                        h2 [] [ str "Table of Contents" ]
+                        ol [] [
+                            for x in manifest.ContentFiles do
+                                if x.Navigation.IsSome then
+                                    li [] [ a [ _href x.FileName ] [ str x.Title ] ]
+                        ]
+                    ]
+                    nav [ attr "epub:type" "landmarks"; attr "hidden" "" ] [
+                        h2 [] [ str "Landmarks" ]
+                        ol [] [
+                            li [] [ a [ attr "epub:type" "toc"; _href "_nav.xhtml#toc" ] [ str "Table of Contents" ] ]
+                            li [] [ a [ attr "epub:type" "bodymatter"; _href firstContentFile ] [ str "Start of Content" ] ]
+                        ]
                     ]
                 ]
             ]
         ]
-        |> RenderView.AsBytes.xmlNode
+        |> RenderView.AsBytes.xmlNodes
 
     let renderXhtmlFromBody cssFiles title' body' =
         [
             xhtmlDoctype
-            html [ xhtmlXmlns ] [
+            html [ attr "xmlns" "http://www.w3.org/1999/xhtml" ] [
                 head [] [
                     title [] [ str title' ]
 
@@ -118,41 +199,76 @@ module private WriteInt =
         |> RenderView.AsBytes.xmlNodes
 
     let writeContainerEntry archive =
-        Container.container ()
-        |> RenderView.AsBytes.xmlNode
-        |> writeEntryBytes archive CompressionLevel.Fastest "META-INF/container.xml"
+        "<?xml version=\"1.0\" encoding=\"UTF-8\"?><container version=\"1.0\" xmlns=\"urn:oasis:names:tc:opendocument:xmlns:container\"><rootfiles><rootfile media-type=\"application/oebps-package+xml\" full-path=\"EPUB/package.opf\" /></rootfiles></container>"B
+        |> writeEntryBytes archive CompressionLevel.NoCompression "META-INF/container.xml"
 
     let writePackageEntry archive metadata manifest =
-        Package.package metadata manifest
-        |> RenderView.AsBytes.xmlNode
-        |> writeEntryBytes archive CompressionLevel.Fastest "EPUB/package.opf"
+        package metadata manifest
+        |> RenderView.AsBytes.xmlNodes
+        |> writeEntryBytes archive CompressionLevel.Optimal "EPUB/package.opf"
 
-let write (stream: Stream) metadata manifest =
-    use archive = new ZipArchive (stream, ZipArchiveMode.Create, true)
-    writeEntryBytes archive CompressionLevel.NoCompression "mimetype" (System.Text.Encoding.UTF8.GetBytes "application/epub+zip")
-    writeContainerEntry archive
-    writePackageEntry archive metadata manifest
+module Write =
+    let write (stream: Stream) metadata manifest =
+        use archive = new ZipArchive (stream, ZipArchiveMode.Create, true)
+        writeEntryBytes archive CompressionLevel.NoCompression "mimetype" "application/epub+zip"B
+        writeContainerEntry archive
+        writePackageEntry archive metadata manifest
 
-    match manifest.NavXhtml with
-    | Raw (Stream s) -> writeEntryStream archive CompressionLevel.Fastest "EPUB/_nav.xhtml" s
-    | Autogenerated ->
-        generateNav manifest
-        |> writeEntryBytes archive CompressionLevel.Fastest "EPUB/_nav.xhtml"
+        match manifest.NavigationFile with
+        | NavInput.Raw s -> writeEntryStream archive CompressionLevel.Optimal "EPUB/_nav.xhtml" s
+        | Autogenerated ->
+            generateNav manifest
+            |> writeEntryBytes archive CompressionLevel.Optimal "EPUB/_nav.xhtml"
 
-    match manifest.CoverImage with
-    | Some { Input = RawInput.Stream s } ->
-        writeEntryStream archive CompressionLevel.NoCompression "EPUB/cover" s
-    | _ -> ()
+        match manifest.CoverImage with
+        | Some { Input = s; Extension = ext } ->
+            writeEntryStream archive CompressionLevel.NoCompression ("EPUB/cover" + ext) s
+        | _ -> ()
 
-    for x in manifest.TitlePage :: manifest.ContentFiles do
-        let name = "EPUB/" + x.FileName
+        for x in manifest.TitlePage :: manifest.ContentFiles do
+            let name = "EPUB/" + x.FileName
 
-        match x.Input with
-        | ContentInput.Raw (Stream s) -> writeEntryStream archive CompressionLevel.Fastest name s
-        | ContentInput.Structured body ->
-            renderXhtmlFromBody manifest.CssFiles x.Title body
-            |> writeEntryBytes archive CompressionLevel.Fastest name
+            match x.Input with
+            | ContentInput.Raw s -> writeEntryStream archive CompressionLevel.Optimal name s
+            | ContentInput.Structured body ->
+                renderXhtmlFromBody manifest.CssFiles x.Title body
+                |> writeEntryBytes archive CompressionLevel.Optimal name
 
-    for css in manifest.CssFiles do
-        match css.Input with
-        | RawInput.Stream s -> writeEntryStream archive CompressionLevel.Fastest ("EPUB/" + css.FileName) s
+            match x.Smil with
+            | Some smil ->
+                let smilName = "EPUB/" + x.FileName + ".smil"
+            
+                match smil.Input with
+                | SmilInput.Raw s -> writeEntryStream archive CompressionLevel.Optimal smilName s
+                | SmilInput.Structured (head, body) ->
+                    [
+                        xmlDecl
+                        tag "smil" [ attr "xmlns" "http://www.w3.org/ns/SMIL"; attr "xmlns:epub" "http://www.idpf.org/2007/ops"; attr "version" "3.0" ] [
+                            tag "head" [] head
+                            tag "body" [ attr "epub:textref" x.FileName ] body
+                        ]
+                    ]
+                    |> RenderView.AsBytes.xmlNodes
+                    |> writeEntryBytes archive CompressionLevel.Optimal smilName
+                | SmilInput.ParNodes (audioRef, parNodes) ->
+                    [
+                        xmlDecl
+                        tag "smil" [ attr "xmlns" "http://www.w3.org/ns/SMIL"; attr "xmlns:epub" "http://www.idpf.org/2007/ops"; attr "version" "3.0" ] [
+                            tag "body" [ attr "epub:textref" x.FileName ] [
+                                for p in parNodes do
+                                    tag "par" [] [
+                                        voidTag "text" [ attr "src" (x.FileName + p.TextFragmentReference) ]
+                                        voidTag "audio" [ attr "src" audioRef; attr "clipBegin" (smilTimeStamp p.ClipBegin); attr "clipEnd" (smilTimeStamp p.ClipEnd) ]
+                                    ]
+                            ]
+                        ]
+                    ]
+                    |> RenderView.AsBytes.xmlNodes
+                    |> writeEntryBytes archive CompressionLevel.Optimal smilName
+            | _ -> ()
+
+        for a in manifest.AudioFiles do
+            writeEntryStream archive CompressionLevel.NoCompression ("EPUB/" + a.FileName) a.Input
+
+        for css in manifest.CssFiles do
+            writeEntryStream archive CompressionLevel.Optimal ("EPUB/" + css.FileName) css.Input

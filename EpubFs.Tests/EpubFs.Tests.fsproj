@@ -2,7 +2,7 @@
 
   <PropertyGroup>
     <OutputType>Exe</OutputType>
-    <TargetFramework>net6.0</TargetFramework>
+    <TargetFramework>net10.0</TargetFramework>
   </PropertyGroup>
 
   <ItemGroup>
@@ -19,15 +19,10 @@
   </ItemGroup>
 
   <ItemGroup>
-    <PackageReference Include="Expecto" Version="9.0.4" />
+    <PackageReference Include="Expecto" Version="11.0.0-alpha8" />
   </ItemGroup>
 
   <ItemGroup>
     <ProjectReference Include="..\EpubFs\EpubFs.fsproj" />
   </ItemGroup>
-
-  <ItemGroup>
-    <PackageReference Update="FSharp.Core" Version="6.0.5" />
-  </ItemGroup>
-
 </Project>
