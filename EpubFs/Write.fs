@@ -48,7 +48,7 @@ module internal Internal =
                 attr "xmlns" "http://www.idpf.org/2007/opf"
                 attr "xmlns:dc" "http://purl.org/dc/elements/1.1/"
                 attr "prefix" "media: http://www.idpf.org/epub/vocab/overlays/#"
-                attr "version" "3.3"
+                attr "version" "3.0"
                 attr "unique-identifier" "id"
             ] [
                 tag "metadata" [] [
