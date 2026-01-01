@@ -6,21 +6,6 @@
   </PropertyGroup>
 
   <ItemGroup>
-    <None Include="samples/cover.jpg">
-      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
-    </None>
-    <None Include="samples/hello.mp3">
-      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
-    </None>
-    <None Include="samples/Cover, auto nav, css.epub">
-      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
-    </None>
-    <None Include="samples/Media overlay with SMIL.epub">
-      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
-    </None>
-    <None Include="samples/No cover, auto nav, no css.epub">
-      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
-    </None>
     <Compile Include="Program.fs" />
   </ItemGroup>
 
