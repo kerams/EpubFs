@@ -1,4 +1,4 @@
-﻿namespace EpubFs
+namespace EpubFs
 
 open Giraffe.ViewEngine
 open System

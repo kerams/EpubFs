@@ -1,4 +1,4 @@
-﻿open System.Collections.Generic
+open System.Collections.Generic
 open Fake.Core
 open Fake.IO
 

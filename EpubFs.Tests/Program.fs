@@ -1,4 +1,4 @@
-﻿module Tests
+module Tests
 
 open EpubFs
 open EpubFs.Write

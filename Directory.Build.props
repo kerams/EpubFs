@@ -1,0 +1,13 @@
+<Project>
+    <PropertyGroup>
+        <AccelerateBuildsInVisualStudio>true</AccelerateBuildsInVisualStudio>
+        <LangVersion>preview</LangVersion>
+        <TreatWarningsAsErrors>true</TreatWarningsAsErrors>
+        <OtherFlags>$(OtherFlags) --warnon:1182 --warnon:3560 --warnon:3390</OtherFlags>
+        <WarningLevel>4</WarningLevel>
+        <ProduceReferenceAssembly>true</ProduceReferenceAssembly>
+        <SuppressNETCoreSdkPreviewMessage>true</SuppressNETCoreSdkPreviewMessage>
+        <Nullable>enable</Nullable>
+        <SatelliteResourceLanguages>en</SatelliteResourceLanguages>
+    </PropertyGroup>
+</Project>
