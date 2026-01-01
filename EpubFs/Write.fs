@@ -48,7 +48,7 @@ module internal Internal =
                 attr "xmlns" "http://www.idpf.org/2007/opf"
                 attr "xmlns:dc" "http://purl.org/dc/elements/1.1/"
                 attr "prefix" "media: http://www.idpf.org/epub/vocab/overlays/#"
-                attr "version" "3.0"
+                attr "version" "3.3"
                 attr "unique-identifier" "id"
             ] [
                 tag "metadata" [] [
@@ -125,8 +125,8 @@ module internal Internal =
                         if x.Smil.IsSome then
                             item $"{x.FileName}.smil" $"item{index + 1}_smil" "application/smil+xml" false
 
-                    for index, x in List.indexed manifest.AudioFiles do
-                        item x.FileName $"audio{index + 1}" x.MediaType false
+                    for index, x in List.indexed manifest.OtherFiles do
+                        item x.FileName $"other{index + 1}" x.MediaType false
 
                     for index, css in List.indexed manifest.CssFiles do
                         item css.FileName $"css{index + 1}" "text/css" false
@@ -267,8 +267,8 @@ module Write =
                     |> writeEntryBytes archive CompressionLevel.Optimal smilName
             | _ -> ()
 
-        for a in manifest.AudioFiles do
-            writeEntryStream archive CompressionLevel.NoCompression ("EPUB/" + a.FileName) a.Input
+        for x in manifest.OtherFiles do
+            writeEntryStream archive (if x.Compress then CompressionLevel.Optimal else CompressionLevel.NoCompression) ("EPUB/" + x.FileName) x.Input
 
         for css in manifest.CssFiles do
             writeEntryStream archive CompressionLevel.Optimal ("EPUB/" + css.FileName) css.Input
