@@ -15,15 +15,15 @@ type SmilInput =
     /// A raw SMIL file provided as a stream. Use this when you have a pre-built SMIL file.
     | Raw of Stream
     /// A list of XML nodes representing the head and body content of the SMIL file.
-    | Structured of head: XmlNode list * body: XmlNode list
+    | Structured of head: XmlNode seq * body: XmlNode seq
     /// A simplified representation using ParNode records. Each ParNode generates a `<par>` element with text and audio synchronization.
-    | ParNodes of audioFileReference: string * parNodes: ParNode list
+    | ParNodes of audioFileReference: string * parNodes: ParNode seq
 
 type ContentInput =
     /// A raw XHTML file provided as a stream. Use this when you have a pre-built XHTML file.
     | Raw of Stream
     /// A list of XML nodes representing the body content. The XHTML document structure (html, head, body) will be generated automatically.
-    | Structured of body: XmlNode list
+    | Structured of body: XmlNode seq
 
 type NavInput =
     /// Automatically generate the navigation document (table of contents) from ContentFiles that have Navigation set.
@@ -48,7 +48,7 @@ type MediaOverlayMetadata = {
     /// CSS class added to the root element during playback.
     PlaybackActiveClass: string option
     /// Name(s) of the narrator(s), optional.
-    Narrators: string list }
+    Narrators: string seq }
 
 type Metadata = {
     /// See: https://www.w3.org/TR/epub-33/#sec-opf-dcidentifier
@@ -57,13 +57,13 @@ type Metadata = {
     Title: string
     /// At least one required, with the first one considered primary.
     /// See: https://www.w3.org/TR/epub-33/#sec-opf-dclanguage
-    Languages: string list
+    Languages: string seq
     /// `None` defaults to DateTimeOffset.UtcNow
     /// See: https://www.w3.org/TR/epub-33/#last-modified-date
     ModifiedAt: DateTimeOffset option
     /// Optional.
     /// See: https://www.w3.org/TR/epub-33/#sec-opf-dccreator
-    Creators: string list
+    Creators: string seq
     /// See: https://www.w3.org/TR/epub-33/#sec-opf-dcmes-optional-def
     Source: string option
     /// Book summary or blurb.
@@ -74,7 +74,7 @@ type Metadata = {
     Publisher: string option
     /// Categories or tags for the publication. Optional.
     /// See: https://www.w3.org/TR/epub-33/#sec-opf-dcmes-optional-def
-    Subjects: string list
+    Subjects: string seq
     /// Copyright or rights statement. Optional.
     /// See: https://www.w3.org/TR/epub-33/#sec-opf-dcmes-optional-def
     Rights: string option
@@ -127,8 +127,8 @@ type Manifest = {
     /// Title page added first to the spine before the navigation document.
     TitlePage: Xhtml
     /// XHTML content documents in reading order.
-    ContentFiles: Xhtml list
+    ContentFiles: Xhtml seq
     /// Stylesheets referenced by generated XHTML documents.
-    CssFiles: CssFile list
+    CssFiles: CssFile seq
     /// Additional resources (fonts, audio, etc.) to include in the package.
-    OtherFiles: OtherFile list }
+    OtherFiles: OtherFile seq }

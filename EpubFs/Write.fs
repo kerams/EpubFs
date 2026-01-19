@@ -40,7 +40,7 @@ module internal Internal =
 
     let package metadata manifest =
         let modifiedAt = Option.defaultWith (fun () -> DateTimeOffset.UtcNow) metadata.ModifiedAt
-        let contentFiles = List.indexed manifest.ContentFiles 
+        let contentFiles = Seq.indexed manifest.ContentFiles |> Seq.toArray
 
         [
             xmlDecl
@@ -55,7 +55,7 @@ module internal Internal =
                     tag "dc:identifier" [ _id "id" ] [ str metadata.Id ]
                     tag "dc:title" [] [ str metadata.Title ]
 
-                    for i, c in List.indexed metadata.Creators do
+                    for i, c in Seq.indexed metadata.Creators do
                         tag "dc:creator" [ _id $"creator{i + 1}" ] [ str c ]
 
                     for l in metadata.Languages do
@@ -125,10 +125,10 @@ module internal Internal =
                         if x.Smil.IsSome then
                             item $"{x.FileName}.smil" $"item{index + 1}_smil" "application/smil+xml" false
 
-                    for index, x in List.indexed manifest.OtherFiles do
+                    for index, x in Seq.indexed manifest.OtherFiles do
                         item x.FileName $"other{index + 1}" x.MediaType false
 
-                    for index, css in List.indexed manifest.CssFiles do
+                    for index, css in Seq.indexed manifest.CssFiles do
                         item css.FileName $"css{index + 1}" "text/css" false
                 ]
                 tag "spine" [] [
@@ -154,7 +154,7 @@ module internal Internal =
     let generateNav manifest =
         let firstContentFile =
             manifest.ContentFiles
-            |> List.tryPick (fun x -> if x.Navigation.IsSome then Some x.FileName else None)
+            |> Seq.tryPick (fun x -> if x.Navigation.IsSome then Some x.FileName else None)
             |> Option.defaultValue manifest.TitlePage.FileName
 
         [
@@ -187,7 +187,7 @@ module internal Internal =
     let renderXhtmlFromBody cssFiles title' body' =
         [
             xhtmlDoctype
-            html [ attr "xmlns" "http://www.w3.org/1999/xhtml" ] [
+            html [ attr "xmlns" "http://www.w3.org/1999/xhtml"; attr "xmlns:epub" "http://www.idpf.org/2007/ops" ] [
                 head [] [
                     title [] [ str title' ]
 
@@ -226,14 +226,14 @@ module Write =
         | Some { Input = s; Extension = ext } -> do! writeEntryStream archive CompressionLevel.NoCompression ("EPUB/cover" + ext) s
         | _ -> ()
 
-        for x in manifest.TitlePage :: manifest.ContentFiles do
+        for x in seq { manifest.TitlePage; yield! manifest.ContentFiles } do
             let name = "EPUB/" + x.FileName
 
             do!
                 match x.Input with
                 | ContentInput.Raw s -> writeEntryStream archive CompressionLevel.Optimal name s
                 | ContentInput.Structured body ->
-                    renderXhtmlFromBody manifest.CssFiles x.Title body
+                    renderXhtmlFromBody manifest.CssFiles x.Title (Seq.toList body)
                     |> writeEntryBytes archive CompressionLevel.Optimal name
 
             match x.Smil with
@@ -247,8 +247,8 @@ module Write =
                         [
                             xmlDecl
                             tag "smil" [ attr "xmlns" "http://www.w3.org/ns/SMIL"; attr "xmlns:epub" "http://www.idpf.org/2007/ops"; attr "version" "3.0" ] [
-                                tag "head" [] head
-                                tag "body" [ attr "epub:textref" x.FileName ] body
+                                tag "head" [] (Seq.toList head)
+                                tag "body" [ attr "epub:textref" x.FileName ] (Seq.toList body)
                             ]
                         ]
                         |> RenderView.AsBytes.xmlNodes
