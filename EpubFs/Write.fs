@@ -200,7 +200,7 @@ module internal Internal =
         |> RenderView.AsBytes.xmlNodes
 
     let writeContainerEntry archive =
-        "<?xml version=\"1.0\" encoding=\"UTF-8\"?><container version=\"1.0\" xmlns=\"urn:oasis:names:tc:opendocument:xmlns:container\"><rootfiles><rootfile media-type=\"application/oebps-package+xml\" full-path=\"EPUB/package.opf\" /></rootfiles></container>"B
+        """<?xml version="1.0" encoding="UTF-8"?><container version="1.0" xmlns="urn:oasis:names:tc:opendocument:xmlns:container"><rootfiles><rootfile media-type="application/oebps-package+xml" full-path="EPUB/package.opf" /></rootfiles></container>"""B
         |> writeEntryBytes archive CompressionLevel.NoCompression "META-INF/container.xml"
 
     let writePackageEntry archive metadata manifest =
