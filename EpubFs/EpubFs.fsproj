@@ -7,7 +7,7 @@
     <PackageId>EpubFs</PackageId>
     <Description>EPUB authoring library for F#.</Description>
     <Authors>kerams</Authors>
-    <Version>0.3</Version>
+    <Version>0.4</Version>
     <PackageTags>fsharp;epub;ebook</PackageTags>
     <PackageProjectUrl>https://github.com/kerams/EpubFs</PackageProjectUrl>
     <PackageLicenseExpression>MIT</PackageLicenseExpression>

@@ -208,6 +208,8 @@ module internal Internal =
         |> RenderView.AsBytes.xmlNodes
         |> writeEntryBytes archive CompressionLevel.Optimal "EPUB/package.opf"
 
+#nowarn 3511
+
 module Write =
     let write (stream: Stream) metadata manifest: System.Threading.Tasks.Task = backgroundTask {
         use archive = new ZipArchive (stream, ZipArchiveMode.Create, true)
