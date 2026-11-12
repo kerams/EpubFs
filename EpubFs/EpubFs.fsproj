@@ -7,10 +7,11 @@
     <PackageId>EpubFs</PackageId>
     <Description>EPUB authoring library for F#.</Description>
     <Authors>kerams</Authors>
-    <Version>0.5</Version>
+    <Version>0.5.1</Version>
     <PackageTags>fsharp;epub;ebook</PackageTags>
     <PackageProjectUrl>https://github.com/kerams/EpubFs</PackageProjectUrl>
     <PackageLicenseExpression>MIT</PackageLicenseExpression>
+    <PackageReadmeFile>README.md</PackageReadmeFile>
 
     <RepositoryUrl>https://github.com/kerams/EpubFs</RepositoryUrl>
     <RepositoryType>git</RepositoryType>
@@ -23,6 +24,10 @@
   <ItemGroup>
     <Compile Include="Types.fs" />
     <Compile Include="Write.fs" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <None Include="..\README.md" Pack="true" PackagePath="\" Visible="false" />
   </ItemGroup>
 
   <ItemGroup>

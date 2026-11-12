@@ -11,7 +11,7 @@ jobs:
     runs-on: ubuntu-latest
 
     permissions:
-      contents: read
+      contents: write # create the GitHub release
       id-token: write # required for NuGet trusted publishing (OIDC)
 
     steps:
@@ -23,6 +23,18 @@ jobs:
 
       - run: dotnet run --project ./build/Build.fsproj Test
 
+      # Takes the "### <version> - <date>" section of RELEASE_NOTES.md matching the tag (v0.5.0 -> 0.5.0)
+      - name: Extract release notes
+        if: startsWith(github.ref, 'refs/tags/')
+        run: |
+          version="${GITHUB_REF_NAME#v}"
+          awk -v v="$version" '/^### /{ if (found) exit; if ($2 == v) { found = 1; next } } found' RELEASE_NOTES.md > notes.md
+          if [ ! -s notes.md ]; then
+            echo "::error::No section for $version in RELEASE_NOTES.md"
+            exit 1
+          fi
+          cat notes.md
+
       # Exchanges the GitHub OIDC token for a short-lived NuGet API key
       - uses: NuGet/login@v1
         id: login
@@ -32,3 +44,9 @@ jobs:
       - run: dotnet pack EpubFs -c Release -o out
 
       - run: dotnet nuget push "out/*.nupkg" -s https://api.nuget.org/v3/index.json -k ${{ steps.login.outputs.NUGET_API_KEY }} --skip-duplicate
+
+      - name: Create GitHub release
+        if: startsWith(github.ref, 'refs/tags/')
+        run: gh release create "$GITHUB_REF_NAME" out/*.nupkg --title "$GITHUB_REF_NAME" --notes-file notes.md --verify-tag
+        env:
+          GH_TOKEN: ${{ github.token }}
